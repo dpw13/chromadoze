@@ -69,6 +69,10 @@ public class SpectrumData implements Parcelable {
         dest.writeFloatArray(mData);
     }
 
+    /*
+     * Copies the configured band values to the frequency bins in out, copying the logarithmically
+     * spaced bands to the linearly spaced frequency bins in the outputs.
+     */
     public void fill(float[] out, int sampleRate) {
         int maxFreq = sampleRate / 2;
         subFill(out, 0f, 0, EDGE_FREQS[0], maxFreq);
@@ -78,11 +82,34 @@ public class SpectrumData implements Parcelable {
         subFill(out, 0f, EDGE_FREQS[BAND_COUNT], maxFreq, maxFreq);
     }
 
+    public void fillComplex(float[] out, int sampleRate) {
+        int maxFreq = sampleRate / 2;
+        subFillComplex(out, 0f, 0, EDGE_FREQS[0], maxFreq);
+        for (int i = 0; i < BAND_COUNT; i++) {
+            subFillComplex(out, mData[i], EDGE_FREQS[i], EDGE_FREQS[i + 1], maxFreq);
+        }
+        subFillComplex(out, 0f, EDGE_FREQS[BAND_COUNT], maxFreq, maxFreq);
+    }
+
+    /*
+     * Sets the magnitude of all frequencies within the requested range to the specified value.
+     */
     private void subFill(float[] out, float setValue, int startFreq, int limitFreq, int maxFreq) {
         // This min() applies if the sample rate is below 40kHz.
         int limitIndex = Math.min(out.length, limitFreq * out.length / maxFreq);
         for (int i = startFreq * out.length / maxFreq; i < limitIndex; i++) {
             out[i] = setValue;
+        }
+    }
+
+    private void subFillComplex(float[] out, float setValue, int startFreq, int limitFreq, int maxFreq) {
+        // This min() applies if the sample rate is below 40kHz.
+        int bins = out.length / 2;
+        int limitIndex = Math.min(bins, limitFreq * bins / maxFreq);
+        for (int i = startFreq * bins / maxFreq; i < limitIndex; i++) {
+            // Only set the real part of the frequency bins
+            out[2 * i] = setValue;
+            out[2 * i + 1] = 0f;
         }
     }
 
