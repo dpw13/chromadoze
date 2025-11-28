@@ -4,6 +4,7 @@ import android.os.Process;
 import android.os.SystemClock;
 
 import org.jtransforms.dct.FloatDCT_1D;
+import org.jtransforms.fft.FloatFFT_1D;
 
 class SampleGenerator {
     private final NoiseService mNoiseService;
@@ -11,13 +12,16 @@ class SampleGenerator {
     private final SampleShuffler mSampleShuffler;
     private final Thread mWorkerThread;
 
+    private final boolean mUseFft;
+
     // Communication variables; must be synchronized.
     private boolean mStopping;
     private SpectrumData mPendingSpectrum;
 
     // Variables accessed from the thread only.
-    private int mLastDctSize = -1;
+    private int mLastWindowSize = -1;
     private FloatDCT_1D mDct;
+    private FloatFFT_1D mFft;
     private final XORShiftRandom mRandom = new XORShiftRandom();  // Not thread safe.
 
     public SampleGenerator(NoiseService noiseService, AudioParams params,
@@ -25,6 +29,7 @@ class SampleGenerator {
         mNoiseService = noiseService;
         mParams = params;
         mSampleShuffler = sampleShuffler;
+        mUseFft = true;
 
         mWorkerThread = new Thread("SampleGeneratorThread") {
             @Override
@@ -80,8 +85,13 @@ class SampleGenerator {
             final long startMs = SystemClock.elapsedRealtime();
 
             // Generate the next chunk of sound.
-            float[] dctData = doIDCT(state.getChunkSize(), spectrum);
-            if (mSampleShuffler.handleChunk(dctData, state.getStage())) {
+            float[] noiseData;
+            if (mUseFft) {
+                noiseData = doIFFT(state.getChunkSize(), spectrum);
+            } else {
+                noiseData = doIDCT(state.getChunkSize(), spectrum);
+            }
+            if (mSampleShuffler.handleChunk(noiseData, state.getStage())) {
                 // Not dropped.
                 state.advance();
                 mNoiseService.updatePercentAsync(state.getPercent());
@@ -99,7 +109,7 @@ class SampleGenerator {
             if (state.done()) {
                 // No chunks left; save RAM.
                 mDct = null;
-                mLastDctSize = -1;
+                mLastWindowSize = -1;
                 waitMs = -1;
             }
         }
@@ -128,26 +138,57 @@ class SampleGenerator {
         }
     }
 
-    private float[] doIDCT(int dctSize, SpectrumData spectrum) {
-        if (dctSize != mLastDctSize) {
-            mDct = new FloatDCT_1D(dctSize);
-            mLastDctSize = dctSize;
+    private float[] doIDCT(int xformSize, SpectrumData spectrum) {
+        if (xformSize != mLastWindowSize) {
+            mDct = new FloatDCT_1D(xformSize);
+            mLastWindowSize = xformSize;
         }
-        float[] dctData = new float[dctSize];
+        float[] dctData = new float[xformSize];
 
         spectrum.fill(dctData, mParams.SAMPLE_RATE);
 
         // Multiply by a block of white noise.
-        for (int i = 0; i < dctSize; ) {
+        for (int i = 0; i < xformSize; ) {
             long rand = mRandom.nextLong();
-            for (int b = 0; b < 8; b++) {
-                dctData[i++] *= (byte) rand / 128f;
-                rand >>= 8;
+            for (int b = 0; b < 4; b++) {
+                /* Magnitude is in the range [0.0, 1.0) */
+                dctData[i++] *= (float)(rand & 0xFFFF) / (65536f);
+                rand >>= 16;
             }
         }
 
-        mDct.inverse(dctData, false);
+        mDct.inverse(dctData, 0, true);
         return dctData;
+    }
+
+    private float[] doIFFT(int xformSize, SpectrumData spectrum) {
+        if (xformSize != mLastWindowSize) {
+            mFft = new FloatFFT_1D(xformSize);
+            mLastWindowSize = xformSize;
+        }
+        /* Inputs are complex, but for a real signal the negative frequency
+         * components are symmetric with the positive frequency components,
+         * so we still only need N samples. */
+        float[] fftData = new float[xformSize];
+
+        spectrum.fillComplex(fftData, mParams.SAMPLE_RATE);
+
+        // Multiply by a block of white noise.
+        for (int i = 2; i < xformSize / 2; ) {
+            long rand = mRandom.nextLong();
+            for (int b = 0; b < 2; b++) {
+                /* Scale requested magnitude by a random value and rotate by a random angle */
+                float magnitude = fftData[2*i] * (rand & 0xFFFF) / (65536f);
+                float angle = (float)Math.TAU * (rand & 0xFFFF) / (65536f);
+                fftData[2*i] = (float)(magnitude * Math.cos(angle));
+                fftData[2*i + 1] = (float)(magnitude * Math.sin(angle));
+                i++;
+                rand >>= 32;
+            }
+        }
+
+        mFft.realInverse(fftData, 0, true);
+        return fftData;
     }
 
     private static class StopException extends Exception {
