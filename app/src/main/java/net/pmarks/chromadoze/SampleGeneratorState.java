@@ -13,7 +13,7 @@ class SampleGeneratorState {
     private static final int N_SMALL_CHUNKS = 4;
 
     // How many final full-size chunks to generate.
-    private static final int N_LARGE_CHUNKS = 20;
+    private static final int N_LARGE_CHUNKS = 40;
 
     // How many chunks overall.
     private static final int N_TOTAL_CHUNKS = N_SMALL_CHUNKS + N_LARGE_CHUNKS;
@@ -23,7 +23,7 @@ class SampleGeneratorState {
 
     // Size of small/large chunks, in samples.
     private static final int SMALL_CHUNK_SIZE = 8192;
-    private static final int LARGE_CHUNK_SIZE = 65536;
+    private static final int LARGE_CHUNK_SIZE = 8192;
 
     // Begin in the "done" state.
     private int mChunkNumber = N_TOTAL_CHUNKS;
