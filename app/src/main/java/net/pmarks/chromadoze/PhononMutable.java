@@ -121,6 +121,9 @@ public class PhononMutable implements Phonon {
         return mBars[band] / (float) BAR_MAX;
     }
 
+    /*
+     * Returns the scaled value of all bars from [0.0, 1.0]
+     */
     private float[] getAllBars() {
         float[] out = new float[BAND_COUNT];
         for (int i = 0; i < BAND_COUNT; i++) {
