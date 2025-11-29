@@ -21,4 +21,12 @@
     <string name="channel_name">Stop button</string>
     <string name="channel_description">This notification appears when ChromaDoze is generating noise</string>
     <string name="enable_notifications">Please enable the \'■\' notification</string>
+    <string name="options_swell">Amplitude Wave</string>
+    <string name="options_swell_amplitude">Swell amplitude variation</string>
+    <string name="options_swell_period">Swell period</string>
+    <string name="options_advanced">Advanced Options</string>
+    <string name="options_auto_play">Play Automatically on Open</string>
+    <string name="options_ignore_focus">Ignore Audio Focus\n(Keep playing over other apps)</string>
+    <string name="options_use_fft">Use IFFT instead of IDCT</string>
+    <string name="options_volume_limit">Reduce Volume</string>
 </resources>
