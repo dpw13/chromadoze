@@ -28,6 +28,8 @@ individual streams below 32767 / sqrt(2), or ~23170.
 */
 
 class SampleShuffler {
+    private static final String TAG = "SampleShuffler";
+
     // These lengths are measured in samples.
     private static final int SINE_LEN = 1 << 12;
     // FADE_LEN follows the "interior", excluding 0 or 1 values.
@@ -40,10 +42,10 @@ class SampleShuffler {
     private List<AudioChunk> mAudioChunks = null;
     private final ShuffleBag mShuffleBag = new ShuffleBag();
 
-    private float mGlobalVolumeFactor;
+    private float mGlobalVolumeFactor = BASE_AMPLITUDE;
 
     // Sine wave, 4*SINE_LEN points, from [0, 2pi).
-    private static final float SINE[];
+    private static final float[] SINE;
 
     static {
         SINE = new float[4 * SINE_LEN];
@@ -66,9 +68,9 @@ class SampleShuffler {
     // Note that it's essential for this to be synchronized, because
     // the shuffle thread can steal the next fillBuffer() at any time.
     private int mCursor0;
-    private short mChunk0[];
-    private short mChunk1[];
-    private short mAlternateFuture[] = null;
+    private short[] mChunk0;
+    private short[] mChunk1;
+    private short[] mAlternateFuture = null;
 
     private AmpWave mAmpWave = new AmpWave(1f, 0f);
 
@@ -199,9 +201,9 @@ class SampleShuffler {
 
         // Figure out the max amplitude of this chunk once.
         private void computeMaxAmplitude() {
-            mMaxAmplitude = 1;  // Prevent division by zero.
+            mMaxAmplitude = 1f;  // Only amplitudes greater than this will be limited
             for (float sample : mFloatData) {
-                if (sample < 0) sample = -sample;
+                sample = Math.abs(sample);
                 if (sample > mMaxAmplitude) mMaxAmplitude = sample;
             }
         }
@@ -272,32 +274,31 @@ class SampleShuffler {
 
     // Add a new chunk, deleting all the earlier ones.
     private void handleChunkPioneer(AudioChunk newChunk, boolean notify) {
-        mGlobalVolumeFactor = BASE_AMPLITUDE / newChunk.getMaxAmplitude();
+        //mGlobalVolumeFactor = BASE_AMPLITUDE / newChunk.getMaxAmplitude();
         exchangeChunk(withPcm(newChunk), notify);
     }
 
     // Add a new chunk.  If it would clip, make everything quieter.
     private void handleChunkAdaptVolume(AudioChunk newChunk) {
-        if (newChunk.getMaxAmplitude() * mGlobalVolumeFactor > CLIP_AMPLITUDE) {
-            changeGlobalVolume(newChunk.getMaxAmplitude(), newChunk);
-        } else {
-            addChunk(withPcm(newChunk));
-        }
+        //if (newChunk.getMaxAmplitude() * mGlobalVolumeFactor > CLIP_AMPLITUDE) {
+        //    changeGlobalVolume(newChunk.getMaxAmplitude(), newChunk);
+        //} else {
+        addChunk(withPcm(newChunk));
+        //}
     }
 
     // Add a new chunk, and force a max volume that no others can cross.
     private void handleChunkFinalizeVolume(AudioChunk newChunk) {
-        float maxAmplitude = newChunk.getMaxAmplitude();
-        for (AudioChunk c : mAudioChunks) {
-            maxAmplitude = Math.max(maxAmplitude, c.getMaxAmplitude());
-        }
-        if (maxAmplitude * mGlobalVolumeFactor >= BASE_AMPLITUDE) {
-            changeGlobalVolume(maxAmplitude, newChunk);
-        } else {
-            addChunk(withPcm(newChunk));
-        }
+        //float maxAmplitude = newChunk.getMaxAmplitude();
+        //for (AudioChunk c : mAudioChunks) {
+        //    maxAmplitude = Math.max(maxAmplitude, c.getMaxAmplitude());
+        //}
+        //changeGlobalVolume(maxAmplitude);
 
-        // Delete the now-unused float data, to conserve RAM.
+        addChunk(withPcm(newChunk));
+
+        // Delete the float data now that all chunks have been rendered
+        // with the final volume value, to conserve RAM.
         for (AudioChunk c : mAudioChunks) {
             c.purgeFloatData();
         }
@@ -305,18 +306,18 @@ class SampleShuffler {
 
     // Add a new chunk.  If it clips, discard it and ask for another.
     private boolean handleChunkNoClip(AudioChunk newChunk) {
-        if (newChunk.getMaxAmplitude() * mGlobalVolumeFactor > CLIP_AMPLITUDE) {
-            return false;
-        } else {
-            addChunk(withPcm(newChunk));
-            return true;
-        }
+        //if (newChunk.getMaxAmplitude() * mGlobalVolumeFactor > CLIP_AMPLITUDE) {
+        //    return false;
+        //}
+        addChunk(withPcm(newChunk));
+        return true;
     }
 
     // Recompute all chunks with a new volume level.
     // Add a new one first, so the chunk list is never completely empty.
-    private void changeGlobalVolume(float maxAmplitude, AudioChunk newChunk) {
+    private void changeGlobalVolume(float maxAmplitude) {
         mGlobalVolumeFactor = BASE_AMPLITUDE / maxAmplitude;
+        /*
         List<AudioChunk> oldChunks = exchangeChunk(withPcm(newChunk), false);
         List<AudioChunk> playedChunks = new ArrayList<>();
 
@@ -332,6 +333,7 @@ class SampleShuffler {
         for (AudioChunk c : playedChunks) {
             addChunk(withPcm(c));
         }
+         */
     }
 
     private AudioChunk withPcm(AudioChunk chunk) {
@@ -339,7 +341,7 @@ class SampleShuffler {
         return chunk;
     }
 
-    private synchronized void resetFillState(short chunk0[]) {
+    private synchronized void resetFillState(short[] chunk0) {
         // mCursor0 begins at the first non-faded sample, not at 0.
         mCursor0 = FADE_LEN;
         mChunk0 = chunk0;
@@ -475,7 +477,7 @@ class SampleShuffler {
         // Same length as mSine, but shifted/stretched according to mMinAmp.
         // We want to do the multiply using integer math, so [0.0, 1.0] is
         // stored as [0, 32767].
-        private final short mTweakedSine[];
+        private final short[] mTweakedSine;
 
         private int mPos = QUIET_POS;
         private final int mSpeed;
@@ -515,7 +517,7 @@ class SampleShuffler {
         // Apply the amplitude wave to this audio buffer.
         // It's only safe to call this from the playback thread.
         // Returns true if stopAtLoud reached its target.
-        public boolean mutateBuffer(short buf[], boolean stopAtLoud) {
+        public boolean mutateBuffer(short[] buf, boolean stopAtLoud) {
             if (mTweakedSine == null) {
                 return false;
             }
