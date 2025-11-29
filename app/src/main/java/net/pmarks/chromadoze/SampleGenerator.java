@@ -12,7 +12,7 @@ class SampleGenerator {
     private final SampleShuffler mSampleShuffler;
     private final Thread mWorkerThread;
 
-    private final boolean mUseFft;
+    private boolean mUseFft;
 
     // Communication variables; must be synchronized.
     private boolean mStopping;
@@ -29,7 +29,7 @@ class SampleGenerator {
         mNoiseService = noiseService;
         mParams = params;
         mSampleShuffler = sampleShuffler;
-        mUseFft = true;
+        mUseFft = false;
 
         mWorkerThread = new Thread("SampleGeneratorThread") {
             @Override
@@ -56,6 +56,11 @@ class SampleGenerator {
 
     public synchronized void updateSpectrum(SpectrumData spectrum) {
         mPendingSpectrum = spectrum;
+        notify();
+    }
+
+    public synchronized void setUseFft(boolean enabled) {
+        mUseFft = enabled;
         notify();
     }
 

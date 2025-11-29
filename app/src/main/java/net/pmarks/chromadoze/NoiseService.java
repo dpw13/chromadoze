@@ -188,6 +188,9 @@ public class NoiseService extends Service {
             }
         }
 
+        boolean useFft = intent.getBooleanExtra("useFft", false);
+        mSampleGenerator.setUseFft(useFft);
+
         // Background updates.
         mSampleGenerator.updateSpectrum(spectrum);
 

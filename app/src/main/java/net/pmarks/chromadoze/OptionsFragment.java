@@ -23,6 +23,7 @@ public class OptionsFragment extends Fragment implements OnSeekBarChangeListener
     private SwitchCompat mIgnoreAudioFocusCheck;
     private SwitchCompat mVolumeLimitCheck;
     private SeekBar mVolumeLimitSeek;
+    private SwitchCompat mUseFftCheck;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -37,6 +38,7 @@ public class OptionsFragment extends Fragment implements OnSeekBarChangeListener
         mAutoPlayCheck = (SwitchCompat) v.findViewById(R.id.AutoPlayCheck);
 
         mIgnoreAudioFocusCheck = (SwitchCompat) v.findViewById(R.id.IgnoreAudioFocusCheck);
+        mUseFftCheck = (SwitchCompat) v.findViewById(R.id.UseFFTCheck);
         mVolumeLimitCheck = (SwitchCompat) v.findViewById(R.id.VolumeLimitCheck);
         mVolumeLimitSeek = (SeekBar) v.findViewById(R.id.VolumeLimitSeek);
 
@@ -65,6 +67,9 @@ public class OptionsFragment extends Fragment implements OnSeekBarChangeListener
 
         mIgnoreAudioFocusCheck.setChecked(mUiState.getIgnoreAudioFocus());
         mIgnoreAudioFocusCheck.setOnCheckedChangeListener(this);
+
+        mUseFftCheck.setChecked(mUiState.getUseFft());
+        mUseFftCheck.setOnCheckedChangeListener(this);
 
         mVolumeLimitCheck.setOnCheckedChangeListener(this);
         mVolumeLimitSeek.setMax(UIState.MAX_VOLUME);
@@ -107,6 +112,8 @@ public class OptionsFragment extends Fragment implements OnSeekBarChangeListener
             mUiState.setAutoPlay(isChecked, true);
         } else if (buttonView == mIgnoreAudioFocusCheck) {
             mUiState.setIgnoreAudioFocus(isChecked);
+        } else if (buttonView == mUseFftCheck) {
+            mUiState.setUseFft(isChecked);
         } else if (buttonView == mVolumeLimitCheck) {
             mUiState.setVolumeLimitEnabled(isChecked);
             redrawVolumeLimit();

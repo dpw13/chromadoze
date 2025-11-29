@@ -27,6 +27,7 @@ public class UIState {
     private boolean mDirty = false;
     private boolean mAutoPlay;
     private boolean mIgnoreAudioFocus;
+    private boolean mUseFft;
     private boolean mVolumeLimitEnabled;
     private int mVolumeLimit;
     public static final int MAX_VOLUME = 100;
@@ -35,6 +36,7 @@ public class UIState {
         pref.putBoolean("locked", mLocked);
         pref.putBoolean("autoPlay", mAutoPlay);
         pref.putBoolean("ignoreAudioFocus", mIgnoreAudioFocus);
+        pref.putBoolean("useFft", mUseFft);
         pref.putInt("volumeLimit", getVolumeLimit());
         pref.putString("phononS", mScratchPhonon.toJSON());
         for (int i = 0; i < mSavedPhonons.size(); i++) {
@@ -47,6 +49,7 @@ public class UIState {
         mLocked = pref.getBoolean("locked", false);
         setAutoPlay(pref.getBoolean("autoPlay", false), false);
         setIgnoreAudioFocus(pref.getBoolean("ignoreAudioFocus", false));
+        setUseFft(pref.getBoolean("useFft", false));
         setVolumeLimit(pref.getInt("volumeLimit", MAX_VOLUME));
         setVolumeLimitEnabled(mVolumeLimit != MAX_VOLUME);
 
@@ -101,6 +104,7 @@ public class UIState {
         getPhonon().writeIntent(intent);
         intent.putExtra("volumeLimit", (float) getVolumeLimit() / MAX_VOLUME);
         intent.putExtra("ignoreAudioFocus", mIgnoreAudioFocus);
+        intent.putExtra("useFft", mUseFft);
         intent.putExtra("refreshNotification", refreshNotification);
         ContextCompat.startForegroundService(mContext, intent);
         mDirty = false;
@@ -196,6 +200,18 @@ public class UIState {
 
     public boolean getIgnoreAudioFocus() {
         return mIgnoreAudioFocus;
+    }
+
+    public void setUseFft(boolean enabled) {
+        if (mUseFft == enabled) {
+            return;
+        }
+        mUseFft = enabled;
+        mDirty = true;
+    }
+
+    public boolean getUseFft() {
+        return mUseFft;
     }
 
     public void setVolumeLimitEnabled(boolean enabled) {

@@ -124,6 +124,14 @@
             android:text="Ignore Audio Focus\n(Keep playing over other apps)" />
 
         <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/UseFFTCheck"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="Use FFT instead of DCT" />
+
+        <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/VolumeLimitCheck"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
