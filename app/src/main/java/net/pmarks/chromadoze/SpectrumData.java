@@ -46,11 +46,20 @@ public class SpectrumData implements Parcelable {
         }
         mData = donateBars;
         for (int i = 0; i < BAND_COUNT; i++) {
-            if (mData[i] <= 0f) {
-                mData[i] = 0f;
-            } else {
-                mData[i] = 0.001f * (float) Math.pow(1000, mData[i]);
-            }
+            /* Input donateBars values are a linear scale in [0.0, 1.0].
+             * Audio samples are 16 bits per channel or about 48 dB dynamic
+             * range. Scale the input to [-50 dB, 0.0 dB] or [10^-5, 1.0] on
+             * a log scale.
+             *
+             * This calculation was previously 0.001 * Math.pow(1000f, mData[i])
+             * which is equal to Math.pow(10.0, 3*(mData[i] - 1)). I've changed
+             * the equation to extend the input scaling down to below a single
+             * LSB of audio output to ensure an appropriate volume difference
+             * between the lowest non-zero value of a bin and zero. I've also
+             * refactored the equation to make the relationship to dB clearer.
+             */
+            float exp = 5f*(mData[i] - 1f);
+            mData[i] = (float) Math.pow(10.0, exp);
         }
     }
 
